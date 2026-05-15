@@ -1,6 +1,6 @@
 {
   "name": "social-archiver",
-  "version": "1.0.0",
+  "version": "3.6.2",
   "description": "Operate the Obsidian Social Archiver plugin through the Obsidian CLI. Archive social-media URLs, poll archive jobs, list and apply tags, run sync (subscriptions / library / pending), and import Instagram Saved ZIP exports. Triggers when an agent needs to save, inspect, or manage social-media content in an Obsidian vault.",
   "author": {
     "name": "Hyungyun Lim",

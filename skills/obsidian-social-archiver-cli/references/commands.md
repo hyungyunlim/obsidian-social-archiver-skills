@@ -772,3 +772,124 @@ obsidian vault="Research" social-archiver:author-notes \
   "planned": [ { "author": "example", "path": "Authors/example.md", "change": "create" } ]
 }
 ```
+
+---
+
+### `social-archiver:ai-comment`
+
+Synopsis:
+
+```
+obsidian vault=<vault> social-archiver:ai-comment path=<vault-path> type=<...> [provider=claude|gemini|codex] [prompt=<text>] [language=<lang>] [outputLanguage=<auto|lang>] [format=json|text]
+```
+
+Generate an AI comment (summary, fact-check, key points, sentiment, etc.) for a note. **Fire-and-forget** — the response is `{ scheduled: true, ... }` and the actual generation runs in the background (typical wall clock 15-60s depending on type and provider). Observe completion with `social-archiver:ai-comments path=...`. Desktop-only — requires a locally installed AI CLI (`claude`, `gemini`, or `codex`).
+
+| Flag | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `path` | vault-path | yes | — | Target note path. |
+| `type` | enum | yes | — | One of `summary`, `factcheck`, `critique`, `keypoints`, `sentiment`, `connections`, `translation`, `translate-transcript`, `glossary`, `reformat`, `custom`. |
+| `provider` | enum | no | first authenticated | `claude` \| `gemini` \| `codex`. If the chosen provider is missing or unauthenticated, the service auto-falls back to any installed and authenticated one. |
+| `prompt` | text | conditional | — | Required when `type=custom`. |
+| `language` | string | conditional | — | Required when `type=translation` or `type=translate-transcript` (ISO 639-1 code, e.g. `ko`, `en`, `ja`). |
+| `outputLanguage` | string | no | `auto` | Language used for the AI response itself. `auto` matches the content language. |
+| `format` | enum `json` \| `text` | no | `json` | Output format. |
+
+Example:
+
+```bash
+obsidian vault="Research" social-archiver:ai-comment \
+  path="Social Archives/X/2026/05/post.md" \
+  type=summary provider=claude format=json
+```
+
+`data` shape:
+
+```json
+{
+  "scheduled": true,
+  "path": "Social Archives/X/2026/05/post.md",
+  "type": "summary",
+  "provider": "claude",
+  "estimatedSeconds": 20
+}
+```
+
+Errors:
+
+- `INVALID_ARGUMENT` — missing/invalid `path`, `type`, `provider`; or `type=custom` without `prompt`; or translation type without `language`; or no AI CLI installed/authenticated.
+- `UNSUPPORTED_PLATFORM` — invoked on mobile (no local AI CLI).
+
+---
+
+### `social-archiver:ai-comments`
+
+Synopsis:
+
+```
+obsidian vault=<vault> social-archiver:ai-comments path=<vault-path> [format=json|text]
+```
+
+List AI comments stored on a note. Read-only; parses the `## AI Comments` section and metadata of the target file. Use this to observe completion of an `ai-comment` job.
+
+| Flag | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `path` | vault-path | yes | — | Note to inspect. |
+| `format` | enum `json` \| `text` | no | `json` | Output format. |
+
+Example:
+
+```bash
+obsidian vault="Research" social-archiver:ai-comments \
+  path="Social Archives/X/2026/05/post.md" format=json
+```
+
+`data` shape:
+
+```json
+{
+  "path": "Social Archives/X/2026/05/post.md",
+  "count": 2,
+  "comments": [
+    {
+      "id": "claude-summary-20260515T103000Z",
+      "cli": "claude",
+      "type": "summary",
+      "generatedAt": "2026-05-15T10:30:00Z",
+      "processingTime": 18420,
+      "contentLength": 412
+    }
+  ]
+}
+```
+
+---
+
+### `social-archiver:ai-providers`
+
+Synopsis:
+
+```
+obsidian vault=<vault> social-archiver:ai-providers [format=json|text]
+```
+
+List installed AI CLI providers (`claude`, `gemini`, `codex`) and their availability + authentication status. Synchronous read of the plugin's cached detection result; the first call may report `available=false` until detection completes in the background.
+
+| Flag | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `format` | enum `json` \| `text` | no | `json` | Output format. |
+
+`data` shape:
+
+```json
+{
+  "desktop": true,
+  "providers": [
+    { "cli": "claude", "displayName": "Claude Code", "available": true, "authenticated": true, "path": "/opt/homebrew/bin/claude", "version": "1.5.0" },
+    { "cli": "gemini", "displayName": "Gemini CLI", "available": false, "authenticated": false, "path": null, "version": null },
+    { "cli": "codex", "displayName": "OpenAI Codex", "available": true, "authenticated": false, "path": "/usr/local/bin/codex", "version": "0.42.0" }
+  ]
+}
+```
+
+On mobile, `desktop=false` and all providers list `available=false`.
