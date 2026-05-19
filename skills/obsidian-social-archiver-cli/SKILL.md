@@ -1,13 +1,13 @@
 ---
 name: obsidian-social-archiver-cli
-description: Use when an agent needs to archive social or web content into Obsidian, inspect Social Archiver jobs, import Instagram Saved exports, sync Social Archiver data, manage tags on Social Archiver notes, or operate the Obsidian Social Archiver plugin through Obsidian CLI. Triggers on phrases like "archive this link", "save to obsidian", "check archive job", "import instagram saved", "social archiver".
+description: Use when an agent needs to archive social or web content into Obsidian, post vault notes to the Social Archiver timeline, create or edit Social Archiver vault Markdown directly, generate or inspect AI comments on archived posts, inspect Social Archiver jobs, import Instagram Saved exports, sync Social Archiver data, manage tags on Social Archiver notes, or operate the Obsidian Social Archiver plugin through Obsidian CLI. Triggers on phrases like "archive this link", "save to obsidian", "post to timeline", "add an AI comment", "comment on this archive", "edit social archive markdown", "check archive job", "import instagram saved", "social archiver".
 ---
 
 # Obsidian Social Archiver CLI
 
-This skill teaches agents how to drive the Social Archiver Obsidian plugin through the Obsidian CLI. All commands are namespaced under `social-archiver` and return JSON when `format=json` is passed.
+This skill teaches agents how to drive the Social Archiver Obsidian plugin through the Obsidian CLI, and how to make safe direct Markdown edits in a vault when the task is file-local. CLI commands are namespaced under `social-archiver` and return JSON when `format=json` is passed.
 
-See `references/commands.md` for the full command catalog and `references/output-schema.md` for the response envelope, error codes, and redaction rules.
+See `references/commands.md` for the full command catalog, `references/output-schema.md` for the response envelope, error codes, and redaction rules, and `references/vault-markdown.md` for the direct vault Markdown contract.
 
 ## Prerequisites
 
@@ -57,6 +57,22 @@ Run every command with `vault=<vault>` first and `format=json` last (or anywhere
 5. Never print, log, or echo `authToken`, `cookie`, `naverCookie`, `Authorization` headers, BrightData/Perplexity/Gumroad API keys, or share passwords. Strip them from any object you display to the user.
 
 6. On `INSUFFICIENT_CREDITS` or `PAYWALL_REQUIRED` errors, surface the billing fallback message verbatim — it instructs the user to upgrade or restore on the mobile app, or to apply a license key in plugin settings. Do **not** attempt to purchase anything from CLI. The plugin cannot accept direct payment under store policy.
+
+## Timeline posts and comments
+
+Use `social-archiver:post` when the user wants an existing vault note to appear in the local Social Archiver timeline. Pass either `path=<vault-path>` or `active`; if the user wants a public share link, use `social-archiver:share` instead because it posts the note and creates the share URL.
+
+Use `social-archiver:ai-comment` when the user asks to add analysis, summary, critique, fact-check, translation, reformatting, or a custom AI response as a comment on a specific archived note. Check available desktop AI providers first with `social-archiver:ai-providers`, then schedule the comment and observe completion with `social-archiver:ai-comments path=<vault-path>`. AI comments are desktop-only and require at least one authenticated local CLI (`claude`, `gemini`, or `codex`).
+
+For a personal note while archiving a new URL, use `social-archiver:archive ... comment=<text>`. For adding or editing a non-AI personal note on an existing archive, the current CLI has no dedicated command; do not pretend `ai-comment` is a manual note editor.
+
+## Direct vault Markdown edits
+
+If the user asks for a timeline post or a comment and the operation can be represented as Markdown/frontmatter, the Obsidian CLI is optional. Prefer direct vault edits when the target note is already known, when the user gives a vault path, or when Obsidian CLI is unavailable but filesystem access is available.
+
+Read `references/vault-markdown.md` before creating or editing files directly. It covers how to resolve `archivePath`, find notes by vault path, `sourceArchiveId`, or `originalUrl`, create `platform: post` timeline documents, set personal-note `comment` frontmatter, append parseable `## AI Comments`, and preserve platform comments under `## 💬 Comments`.
+
+Use the CLI instead of direct Markdown for work that requires network fetches, media download, server sync, share URL creation, billing/auth state, queued jobs, imports, or plugin settings changes.
 
 ## Examples
 
@@ -122,6 +138,36 @@ obsidian vault="Research" social-archiver:sync \
 
 The response lists which sub-targets ran versus were skipped (server pending-job catch-up runs only if the user setting `enableServerPendingJobs` is enabled).
 
+### 6. Post an existing note to the timeline
+
+```bash
+obsidian vault="Research" social-archiver:post \
+  path="Notes/My Thoughts.md" format=json
+
+# Or use the active note in the running Obsidian window.
+obsidian vault="Research" social-archiver:post active format=json
+```
+
+Use `social-archiver:share path="Notes/My Thoughts.md" format=json` if the user wants a web share URL in addition to the local timeline post.
+
+### 7. Generate and inspect an AI comment
+
+```bash
+# Optional readiness check for local AI CLIs.
+obsidian vault="Research" social-archiver:ai-providers format=json
+
+# Schedule comment generation. type=custom requires prompt=<text>.
+obsidian vault="Research" social-archiver:ai-comment \
+  path="Social Archives/X/2026/05/post.md" \
+  type=summary provider=claude outputLanguage=ko format=json
+
+# Poll lightly until the new comment appears; typical completion is 15-60s.
+obsidian vault="Research" social-archiver:ai-comments \
+  path="Social Archives/X/2026/05/post.md" format=json
+```
+
+For custom comments, pass `type=custom prompt="<specific request>"`. For translation use `type=translation language=<target-language>`.
+
 ## Error handling
 
 The response envelope is `{ ok: true, ... }` or `{ ok: false, error: { code, message, retryable, details? } }`. Retryable codes are safe to retry with backoff. Non-retryable codes mean the agent should stop and report to the user.
@@ -151,4 +197,5 @@ Always trust the `retryable` field in the response over the table; the server ma
 
 - Full command catalog with flags and examples: `references/commands.md`
 - Standard envelope, error code semantics, terminal statuses, redaction rules, billing fallback policy: `references/output-schema.md`
+- Direct vault Markdown contract for timeline posts, personal notes, AI comments, platform comments, path lookup, and YAML fields: `references/vault-markdown.md`
 - Optional Node wrapper that hardcodes `format=json` and implements bounded polling: `scripts/social-archiver-cli.mjs`

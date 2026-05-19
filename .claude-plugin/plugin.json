@@ -1,7 +1,7 @@
 {
   "name": "social-archiver",
-  "version": "3.6.2",
-  "description": "Operate the Obsidian Social Archiver plugin through the Obsidian CLI. Archive social-media URLs, poll archive jobs, list and apply tags, run sync (subscriptions / library / pending), and import Instagram Saved ZIP exports. Triggers when an agent needs to save, inspect, or manage social-media content in an Obsidian vault.",
+  "version": "3.6.6",
+  "description": "Operate the Obsidian Social Archiver plugin through the Obsidian CLI and direct vault Markdown edits. Archive social-media URLs, post vault notes to the timeline, generate or inspect AI comments, edit personal notes, poll archive jobs, list and apply tags, run sync, and import Instagram Saved ZIP exports. Triggers when an agent needs to save, post, comment on, inspect, or manage social-media content in an Obsidian vault.",
   "author": {
     "name": "Hyungyun Lim",
     "url": "https://github.com/hyungyunlim"
@@ -30,6 +30,10 @@
     "naver-cafe",
     "brunch",
     "archive",
+    "timeline",
+    "ai-comments",
+    "markdown",
+    "vault",
     "automation",
     "cli"
   ]

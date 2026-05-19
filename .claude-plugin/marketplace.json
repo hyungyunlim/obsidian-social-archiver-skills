@@ -8,8 +8,8 @@
     {
       "name": "social-archiver",
       "source": "./",
-      "description": "Claude / Codex skills for the Obsidian Social Archiver plugin. Drive the Obsidian CLI to archive social-media posts, poll jobs, manage tags, run subscriptions, and import Instagram exports — without opening modals or relying on UI state.",
-      "version": "3.6.2"
+      "description": "Claude / Codex skills for the Obsidian Social Archiver plugin. Drive the Obsidian CLI or edit vault Markdown directly to archive social-media posts, post vault notes to the timeline, add comments, poll jobs, manage tags, run subscriptions, and import Instagram exports — without opening modals or relying on UI state.",
+      "version": "3.6.6"
     }
   ]
 }
