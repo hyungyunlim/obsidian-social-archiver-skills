@@ -1,6 +1,6 @@
 ---
 name: obsidian-social-archiver-cli
-description: Use when an agent needs to archive social or web content into Obsidian, post vault notes to the Social Archiver timeline, create or edit Social Archiver vault Markdown directly, generate or inspect AI comments on archived posts, inspect Social Archiver jobs, import Instagram Saved exports, sync Social Archiver data, manage tags on Social Archiver notes, or operate the Obsidian Social Archiver plugin through Obsidian CLI. Triggers on phrases like "archive this link", "save to obsidian", "post to timeline", "add an AI comment", "comment on this archive", "edit social archive markdown", "check archive job", "import instagram saved", "social archiver".
+description: Use when an agent needs to archive social or web content into Obsidian, ingest selected TweetClaw/X source packs, post vault notes to the Social Archiver timeline, create or edit Social Archiver vault Markdown directly, generate or inspect AI comments on archived posts, inspect Social Archiver jobs, import Instagram Saved exports, sync Social Archiver data, manage tags on Social Archiver notes, or operate the Obsidian Social Archiver plugin through Obsidian CLI. Triggers on phrases like "archive this link", "save to obsidian", "post to timeline", "archive these TweetClaw results", "add an AI comment", "comment on this archive", "edit social archive markdown", "check archive job", "import instagram saved", "social archiver".
 ---
 
 # Obsidian Social Archiver CLI
@@ -73,6 +73,20 @@ If the user asks for a timeline post or a comment and the operation can be repre
 Read `references/vault-markdown.md` before creating or editing files directly. It covers how to resolve `archivePath`, find notes by vault path, `sourceArchiveId`, or `originalUrl`, create `platform: post` timeline documents, set personal-note `comment` frontmatter, append parseable `## AI Comments`, and preserve platform comments under `## 💬 Comments`.
 
 Use the CLI instead of direct Markdown for work that requires network fetches, media download, server sync, share URL creation, billing/auth state, queued jobs, imports, or plugin settings changes.
+
+## TweetClaw/X Source Packs
+
+When the user provides TweetClaw results, exports, or X/Twitter source packs,
+read `references/tweetclaw-x-source-pack.md` before archiving.
+
+Treat TweetClaw output as upstream source selection only. Archive selected
+canonical X URLs with `social-archiver:archive`, preserve capture metadata in
+`tags` and `comment`, and use `ai-comment` or direct vault Markdown only after
+the Social Archiver note exists.
+
+Do not call TweetClaw from this skill. Do not scrape, post, reply, send DMs,
+schedule posts, operate accounts, run browser automation, or call X/Twitter
+platform APIs from this skill. Ask the user to provide the source pack or URLs.
 
 ## Examples
 
@@ -198,4 +212,5 @@ Always trust the `retryable` field in the response over the table; the server ma
 - Full command catalog with flags and examples: `references/commands.md`
 - Standard envelope, error code semantics, terminal statuses, redaction rules, billing fallback policy: `references/output-schema.md`
 - Direct vault Markdown contract for timeline posts, personal notes, AI comments, platform comments, path lookup, and YAML fields: `references/vault-markdown.md`
+- TweetClaw/X source-pack intake for selected public X/Twitter posts and threads: `references/tweetclaw-x-source-pack.md`
 - Optional Node wrapper that hardcodes `format=json` and implements bounded polling: `scripts/social-archiver-cli.mjs`
