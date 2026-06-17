@@ -122,15 +122,24 @@ Always pass `format=json` is the default; never parse free-form text. Parse
    `status` / `error` / `progress`. Stop on a terminal `status` (`completed`,
    `failed`, `cancelled`).
 
-3. **Find / analyze archived content locally.** Run `export` once to materialize
-   archives to Markdown files, then use your own `grep`/read tools on them — this
-   keeps find/analyze off the server entirely (one paginated call, not per-item).
-   ```
-   sa export --dir ./workspace --limit 100
-   grep -ril "topic" ./workspace
-   ```
-   Each file's frontmatter carries `archiveId` (the join key for write-back).
-   Reserve server calls for mutations, and batch them.
+3. **Find / analyze archived content.** Two paths — pick by how much you'll
+   search:
+   - **One-off lookup → `search`** (server-side, returns snippets only):
+     ```
+     sa search --q "react state" --limit 10
+     sa search --q "양자컴퓨팅" --platforms x,reddit --since 2026-01-01T00:00:00Z
+     ```
+     `--q` is required (2–128 chars, substring, recency-ordered). Results carry
+     `archiveId` + a highlighted `snippet`; page with `nextCursor`. For a big
+     library, narrow with `--platform(s)`/`--since`/`--until` (those use indexes).
+   - **Repeated analysis over the same corpus → `export` + local `grep`** (one
+     paginated pull, then unlimited local search at 0 server cost):
+     ```
+     sa export --dir ./workspace --limit 100
+     grep -ril "topic" ./workspace
+     ```
+   Each exported file's frontmatter carries `archiveId` (the join key for
+   write-back). Reserve server calls for mutations, and batch them.
 
    To push edits back, change a file's **frontmatter** (the `tags:` list,
    `liked:`, `bookmarked:`) and run `push` — it diffs against the server and
@@ -167,6 +176,7 @@ Always pass `format=json` is the default; never parse free-form text. Parse
 | `share` | ✅ wired (exported archive `archiveId` or local Markdown → server share URL; `--reader` appends `#reader`) |
 | `tags` | ✅ wired (server: fetchUserTags → names + colors; `--counts` not yet populated) |
 | `author-notes` | ✅ wired (server author-profile seed/upsert from recent archives; `--dryRun` previews keys) |
+| `search` | ✅ wired (server: per-user substring search over your archives → snippet results; `--q` required; flag-gated server-side). One-off lookups; use `export`+grep for repeated analysis |
 | `export` | ✅ workspace: materialize archives to local `.md` (find/analyze, 0 server calls) |
 | `tag` | ✅ workspace: classify by file → server `upsertTags`/`upsertArchiveTags` (batched) |
 | `note` | ✅ workspace: append a personal note by file → server `updateNotes` |

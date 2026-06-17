@@ -208,6 +208,28 @@ are not in this endpoint and stay unpopulated for now.
 sa tags
 ```
 
+### `search` — ✅
+Server-side per-user substring search over your OWN archives. Returns **snippets
+only** (never full bodies), newest-first. One-off lookups; for repeated analysis
+over the same corpus prefer `export` + local `grep` (cheaper after the one pull).
+Feature-gated server-side (`SERVICE_NOT_READY` when disabled).
+- `--q <text>` (required; 2–128 chars; substring, ASCII case-insensitive; CJK works)
+- `--limit <n>` (1–50, default 20)
+- `--platform <p>` / `--platforms <p1,p2>` (index-backed pre-filter)
+- `--since <ISO>` / `--until <ISO>` (archived-date bounds; `since` inclusive, `until` exclusive)
+- `--match <csv>` (subset of `content,title,author,url`; default `content,title,author`)
+- `--cursor <cursor>` (pagination; pass back `data.nextCursor`)
+
+`data` = `{ query, match, results[], hasMore, nextCursor, searchedRows, scanCap, truncated }`;
+each result = `{ archiveId, platform, url, title, author, archivedAt, snippet, matchedField }`.
+```bash
+sa search --q "react state" --limit 10
+sa search --q "양자컴퓨팅" --platforms x,reddit --since 2026-01-01T00:00:00Z
+```
+> Big libraries: one search scans the most-recent candidate window (capped). When
+> `truncated` is true, keep paging with `nextCursor`, or narrow with
+> `--platform(s)`/`--since`/`--until` so the scan stays index-bounded.
+
 ### `subscribe` — ✅
 Create a server-backed subscription from a public profile/feed URL. The CLI uses
 the server target resolver first, then creates the subscription.
