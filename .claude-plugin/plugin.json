@@ -1,7 +1,7 @@
 {
   "name": "social-archiver",
   "version": "4.1.1",
-  "description": "Operate Social Archiver from agents — either the Obsidian plugin (via the Obsidian CLI and direct vault Markdown edits) or the desktop app (via its standalone `sa` / `social-archiver` CLI, no GUI required). Archive social-media URLs, post vault notes to the timeline, generate or inspect AI comments, edit personal notes, poll archive jobs, export archives to local Markdown, push frontmatter edits back, list and apply tags, run sync, import Instagram Saved ZIP exports, and run the headless AI-comment executor. Triggers when an agent needs to save, post, comment on, inspect, or manage social-media content via Social Archiver. Archives public content only; respects per-tier credit and rate limits.",
+  "description": "Operate Social Archiver from agents — either the Obsidian plugin (via the Obsidian CLI and direct vault Markdown edits) or the desktop app (via its standalone `sa` / `social-archiver` CLI, no GUI required). Archive social-media URLs, post vault notes to the timeline, generate or inspect AI comments, edit personal notes, poll archive jobs, export archives to local Markdown, push frontmatter edits back, list and apply tags, run sync, import Instagram Saved ZIP exports, and run the headless AI-comment / translation-variant executor. Triggers when an agent needs to save, post, comment on, inspect, translate, or manage social-media content via Social Archiver. Archives public content only; respects per-tier credit and rate limits.",
   "author": {
     "name": "Hyungyun Lim",
     "url": "https://github.com/hyungyunlim"

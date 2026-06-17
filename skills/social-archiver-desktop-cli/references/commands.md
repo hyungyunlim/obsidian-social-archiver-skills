@@ -89,6 +89,9 @@ appends). The agent-natural "comment": analyze the file yourself, record a note.
 Availability handshake → `createAICommentJob`; returns a `jobId`. The comment is
 produced by a separate executor (the desktop GUI, or `executor --watch` — see
 below), NOT this CLI — returns `SERVICE_NOT_READY` if no executor is available.
+This command still creates AI comments. For server content-variant translation
+jobs (`content.translate_variant`), use the app/server AI-action flow; the
+desktop headless executor can run those jobs once they are queued.
 
 ### `push` — ✅ write-back (declarative frontmatter sync)
 `push <file.md|dir ...> [--dry-run]`. The reverse of `export`: edit a
@@ -133,12 +136,16 @@ sa push ./workspace/2024-x.md     # push one file's frontmatter edits
 
 ## Executor (headless — claim + run server AI jobs locally)
 
-Registers this machine as a `tauri-desktop` executor, then claims AI-comment /
-AI-action jobs and runs a provider CLI (`claude` / `gemini` / `codex`) locally —
-so `ai-comment` completes without the GUI. Output is **NDJSON** (`--format json`,
-default): `{event,…}` progress lines plus a terminal `CliResponse`. `node:*` and
-the provider subprocess stay in the cli/ Node layer; provider auth is checked by
-**presence only** (never reads key contents).
+Registers this machine as a `tauri-desktop` executor, then claims AI-comment jobs
+and the supported AI-action subset locally with a provider CLI (`claude` /
+`gemini` / `codex`). The supported action subset is intentionally narrow:
+`content.translate_variant` is handled and uploaded as a server content variant;
+tag-patch actions and other content variants such as `content.reformat_variant`
+are not claimed by the desktop executor and should route to Obsidian executor or
+Cloud AI. Output is **NDJSON** (`--format json`, default): `{event,…}` progress
+lines plus a terminal `CliResponse`. `node:*` and the provider subprocess stay in
+the cli/ Node layer; provider auth is checked by **presence only** (never reads
+key contents).
 
 ### `executor` — ✅ one-shot
 Register, drain the currently-available job backlog to completion, then exit.

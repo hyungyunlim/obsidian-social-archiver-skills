@@ -8,7 +8,7 @@
     {
       "name": "social-archiver",
       "source": "./",
-      "description": "Claude / Codex skills for Social Archiver. Drive the Obsidian plugin (Obsidian CLI or direct vault Markdown) or the desktop app (standalone `sa` CLI, no GUI) to archive social-media posts, post vault notes to the timeline, add comments, poll jobs, manage tags, run subscriptions, import Instagram exports, and run the headless AI executor — without opening modals or relying on UI state. Public content only; respects credit and rate limits.",
+      "description": "Claude / Codex skills for Social Archiver. Drive the Obsidian plugin (Obsidian CLI or direct vault Markdown) or the desktop app (standalone `sa` CLI, no GUI) to archive social-media posts, post vault notes to the timeline, add comments, poll jobs, manage tags, run subscriptions, import Instagram exports, and run the headless AI comment / translation-variant executor — without opening modals or relying on UI state. Public content only; respects credit and rate limits.",
       "version": "4.1.1"
     }
   ]

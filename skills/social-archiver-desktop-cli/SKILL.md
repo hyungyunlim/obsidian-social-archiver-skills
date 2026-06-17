@@ -1,6 +1,6 @@
 ---
 name: social-archiver-desktop-cli
-description: Use when an agent needs to drive the Social Archiver DESKTOP app headlessly through its standalone Node CLI — archive a social/web URL, check an archive job's status, read account/capability status, or run the headless AI-job executor — without the desktop GUI running. Triggers on phrases like "archive this link with the desktop app", "social archiver desktop cli", "headless archive", "queue an archive job", "check archive job status", "social-archiver status", "run the executor", "executor --watch", "process AI comment jobs headlessly". For the Obsidian-plugin variant (driving a running Obsidian vault), use the `obsidian-social-archiver-cli` skill instead.
+description: Use when an agent needs to drive the Social Archiver DESKTOP app headlessly through its standalone Node CLI — archive a social/web URL, check an archive job's status, read account/capability status, or run the headless AI-job executor — without the desktop GUI running. Triggers on phrases like "archive this link with the desktop app", "social archiver desktop cli", "headless archive", "queue an archive job", "check archive job status", "social-archiver status", "run the executor", "executor --watch", "process AI comment jobs headlessly", "process translation variant jobs headlessly", or "content.translate_variant". For the Obsidian-plugin variant (driving a running Obsidian vault), use the `obsidian-social-archiver-cli` skill instead.
 ---
 
 # Social Archiver Desktop CLI
@@ -16,11 +16,15 @@ desktop host wraps the real `DesktopApiClient`.
 
 > Status: scaffold (PR-1/PR-3 + PR-2 partial) + headless executor (PR-4).
 > `status`, `archive`, and `job` are wired to the live server, and
-> `executor --watch` runs AI-comment / AI-action jobs locally so `ai-comment`
-> now completes **without the GUI**. Other commands are defined but return
-> `SERVICE_NOT_READY` until later phases — see "Command availability" below. This
-> doc states what works today; do not invoke a command marked not-yet-wired and
-> expect a result.
+> `executor --watch` runs AI-comment jobs and the supported AI-action subset
+> locally so `ai-comment` and `content.translate_variant` jobs can complete
+> **without the GUI**. The desktop executor advertises `content-translate-v1`
+> only for content variants: translation variants are supported, while tag
+> patches and other content variants (for example `content.reformat_variant`) are
+> left for an Obsidian executor or Cloud AI. Other commands are defined but
+> return `SERVICE_NOT_READY` until later phases — see "Command availability"
+> below. This doc states what works today; do not invoke a command marked
+> not-yet-wired and expect a result.
 
 See `references/commands.md` for the full catalog and `references/output-schema.md`
 for the envelope, error codes, and redaction rules.
@@ -160,7 +164,7 @@ Always pass `format=json` is the default; never parse free-form text. Parse
 | `note` | ✅ workspace: append a personal note by file → server `updateNotes` |
 | `push` | ✅ workspace write-back: diff a file's frontmatter (tags/liked/bookmarked) → server; `--dry-run` to preview |
 | `ai-comment` | ✅ workspace: queues an AI job — completes when an executor runs (`executor --watch` or the GUI), else `SERVICE_NOT_READY` |
-| `executor` | ✅ headless: claim + run server AI-comment/action jobs locally via a provider CLI (`--watch` to loop; bare = one-shot drain; `--providers` to detect only) |
+| `executor` | ✅ headless: claim + run server AI-comment jobs plus `content.translate_variant` AI actions locally via a provider CLI (`--watch` to loop; bare = one-shot drain; `--providers` to detect only) |
 | `jobs`, `jobs:check`, `sync` | ⛔ need local SQLite/sync engine (GUI-only) |
 | `tag-create`, `tag-apply` | ⛔ cli-core path-based; superseded on desktop by `tag` |
 | `profile-crawl`, `subscribe`, `import-*`, `post`, `share`, `transcribe`, `media`, `author-notes`, `googlemaps`, `ai-*` | ⛔ defined; not yet wired |
@@ -174,7 +178,11 @@ server submit and are ignored; `--media=images` is treated as `--media=all`.
 one executor; `executor --watch` is the headless one. It registers this machine
 as a `tauri-desktop` executor, then claims jobs and runs a provider CLI
 (`claude` / `gemini` / `codex`) locally — so an agent can complete `ai-comment`
-end-to-end with no GUI open.
+end-to-end with no GUI open. It also claims `content.translate_variant` AI
+actions and uploads the result as a server content variant. It deliberately does
+not claim tag-patch actions or broad content-variant work such as
+`content.reformat_variant`; those should route to an Obsidian executor or Cloud
+AI.
 
 ```bash
 # 1. Confirm a provider CLI is installed + signed in (presence only — never reads keys):
