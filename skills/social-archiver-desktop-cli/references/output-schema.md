@@ -1,7 +1,7 @@
 # Output schema — Social Archiver Desktop CLI
 
 The desktop CLI reuses the shared `cli-core` response contract
-(`desktop-app/src/lib/cli/core/response.ts`) — identical to the Obsidian CLI
+(`packages/cli-core/src/core/response.ts`) — identical to the Obsidian CLI
 envelope, so an agent can treat either host the same way.
 
 ## Envelope

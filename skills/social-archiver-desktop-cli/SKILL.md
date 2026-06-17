@@ -1,6 +1,6 @@
 ---
 name: social-archiver-desktop-cli
-description: Use when an agent needs to drive the Social Archiver DESKTOP app headlessly through its standalone Node CLI — archive a social/web URL, check an archive job's status, read account/capability status, or run the headless AI-job executor — without the desktop GUI running. Triggers on phrases like "archive this link with the desktop app", "social archiver desktop cli", "headless archive", "queue an archive job", "check archive job status", "social-archiver status", "run the executor", "executor --watch", "process AI comment jobs headlessly", "process translation variant jobs headlessly", or "content.translate_variant". For the Obsidian-plugin variant (driving a running Obsidian vault), use the `obsidian-social-archiver-cli` skill instead.
+description: Use when an agent needs to drive the Social Archiver DESKTOP app headlessly through its standalone Node CLI — archive a social/web URL, subscribe to a public profile/feed, post/share a local Markdown file, seed author profiles, check archive jobs, read account/capability status, or run the headless AI-job executor — without the desktop GUI running. Triggers on phrases like "archive this link with the desktop app", "social archiver desktop cli", "headless archive", "queue an archive job", "subscribe with desktop cli", "post this markdown", "share this archive", "author-notes", "check archive job status", "social-archiver status", "run the executor", "executor --watch", "process AI comment jobs headlessly", "process translation variant jobs headlessly", or "content.translate_variant". For the Obsidian-plugin variant (driving a running Obsidian vault), use the `obsidian-social-archiver-cli` skill instead.
 ---
 
 # Social Archiver Desktop CLI
@@ -14,14 +14,17 @@ Commands mirror the Obsidian CLI surface and return the same JSON envelope when
 run with the default `format=json`. cli-core is shared host-agnostic code; the
 desktop host wraps the real `DesktopApiClient`.
 
-> Status: scaffold (PR-1/PR-3 + PR-2 partial) + headless executor (PR-4).
-> `status`, `archive`, and `job` are wired to the live server, and
+> Status: scaffold (PR-1/PR-3 + PR-2 partial) + selected server-backed follow-ups
+> + headless executor (PR-4). `status`, `archive`, `job`, `subscribe`,
+> `post`, `share`, `tags`, and `author-notes` are wired to the live server, and
 > `executor --watch` runs AI-comment jobs and the supported AI-action subset
 > locally so `ai-comment` and `content.translate_variant` jobs can complete
 > **without the GUI**. The desktop executor advertises `content-translate-v1`
 > only for content variants: translation variants are supported, while tag
 > patches and other content variants (for example `content.reformat_variant`) are
-> left for an Obsidian executor or Cloud AI. Other commands are defined but
+> left for an Obsidian executor or Cloud AI. `author-notes` on desktop seeds
+> server author profiles; it does not create Obsidian vault author-note files.
+> Other commands are defined but
 > return `SERVICE_NOT_READY` until later phases — see "Command availability"
 > below. This doc states what works today; do not invoke a command marked
 > not-yet-wired and expect a result.
@@ -105,7 +108,8 @@ Always pass `format=json` is the default; never parse free-form text. Parse
    sa status
    ```
    Confirm `data.authenticated === true` and that the `data.features` you need
-   are `true` (e.g. `features.archive`).
+   are `true` (for example `features.archive`, `features.subscribe`,
+   `features.post`, `features.share`, or `features.authorNotes`).
 
 2. Submit long work and poll. `archive` returns a `jobId` quickly:
    ```
@@ -158,7 +162,11 @@ Always pass `format=json` is the default; never parse free-form text. Parse
 | `status` | ✅ wired (server: verifyToken) |
 | `archive` | ✅ wired (server submit → `jobId`) |
 | `job` | ✅ wired (server: getJobStatus → status/error/progress) |
+| `subscribe` | ✅ wired (server resolver → create subscription; `--naverCookie` ignored, not transmitted) |
+| `post` | ✅ wired (local Markdown `--path` → server composed post; `--active` is GUI-only) |
+| `share` | ✅ wired (exported archive `archiveId` or local Markdown → server share URL; `--reader` appends `#reader`) |
 | `tags` | ✅ wired (server: fetchUserTags → names + colors; `--counts` not yet populated) |
+| `author-notes` | ✅ wired (server author-profile seed/upsert from recent archives; `--dryRun` previews keys) |
 | `export` | ✅ workspace: materialize archives to local `.md` (find/analyze, 0 server calls) |
 | `tag` | ✅ workspace: classify by file → server `upsertTags`/`upsertArchiveTags` (batched) |
 | `note` | ✅ workspace: append a personal note by file → server `updateNotes` |
@@ -167,7 +175,7 @@ Always pass `format=json` is the default; never parse free-form text. Parse
 | `executor` | ✅ headless: claim + run server AI-comment jobs plus `content.translate_variant` AI actions locally via a provider CLI (`--watch` to loop; bare = one-shot drain; `--providers` to detect only) |
 | `jobs`, `jobs:check`, `sync` | ⛔ need local SQLite/sync engine (GUI-only) |
 | `tag-create`, `tag-apply` | ⛔ cli-core path-based; superseded on desktop by `tag` |
-| `profile-crawl`, `subscribe`, `import-*`, `post`, `share`, `transcribe`, `media`, `author-notes`, `googlemaps`, `ai-*` | ⛔ defined; not yet wired |
+| `profile-crawl`, `import-*`, `transcribe`, `media`, `googlemaps`, `ai-comments`, `ai-providers` | ⛔ defined; not yet wired |
 
 `archive` v1 limits: `--tags` / `--comment` are local-note features not in the
 server submit and are ignored; `--media=images` is treated as `--media=all`.
@@ -217,6 +225,15 @@ sa status
 # Archive + poll
 sa archive --url="https://www.instagram.com/p/example/"
 sa job --id="<jobId>"
+
+# Subscribe / post / share
+sa subscribe --url="https://x.com/alice" --hour 9
+sa post --path ./draft.md
+sa share --path ./workspace/exported-archive.md --reader
+
+# Seed server author profiles from recent archives (no vault files are created)
+sa author-notes --dryRun --limit 50
+sa author-notes --limit 50
 
 # Compact output
 sa status --format text

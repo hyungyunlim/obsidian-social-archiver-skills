@@ -11,7 +11,7 @@ canonical `social-archiver <command>` also works; in dev from `desktop-app/`,
 > **"Scope, limits & disclaimer"** in `SKILL.md` before archiving on a user's
 > behalf.
 
-Flag definitions are the shared `cli-core` set (`desktop-app/src/lib/cli/core/flags.ts`),
+Flag definitions are the shared `cli-core` set (`packages/cli-core/src/core/flags.ts`),
 so they match the Obsidian CLI. Availability reflects the current desktop
 scaffold; not-yet-wired commands return `SERVICE_NOT_READY`.
 
@@ -208,12 +208,74 @@ are not in this endpoint and stay unpopulated for now.
 sa tags
 ```
 
+### `subscribe` — ✅
+Create a server-backed subscription from a public profile/feed URL. The CLI uses
+the server target resolver first, then creates the subscription.
+- `--url <url>` (required)
+- `--hour <0-23>` (optional; overrides the local cron to `0 <hour> * * *`)
+- `--folder <workspace-path>` (optional destination folder metadata)
+- `--naverSubscriptionType <blog|cafe-member>` (optional Naver metadata)
+- `--naverCookie <base64>` is accepted for shared CLI parity but ignored on
+  desktop; the raw cookie is never transmitted.
+```bash
+sa subscribe --url="https://x.com/alice" --hour 9
+sa subscribe --url="https://blog.example.com/feed.xml" --folder "Social Archives/Subscriptions"
+```
+
+Response `data` includes `{ subscriptionId, platform, handle, cron, folder,
+naverCookieApplied }`; a warning is emitted when `--naverCookie` is supplied.
+
+### `post` — ✅
+Create a server-backed composed post from a local Markdown file.
+- `--path <file.md>` (required on desktop; absolute or relative filesystem path)
+- `--active` is GUI/Obsidian-only and returns `SERVICE_NOT_READY` on desktop
+```bash
+sa post --path ./draft.md
+```
+
+The file's YAML frontmatter is read for `clientPostId`, `author`, `authorHandle`,
+and optional link-preview fields; the Markdown body becomes the server
+`fullContent`. If no `clientPostId` exists, the desktop CLI derives a stable
+`cli_<sha256>` id from the file path so re-running is idempotent. Response `data`
+includes `{ path, postId, archiveId, postedAt, mediaCount }`.
+
+### `share` — ✅
+Create a public share URL and sync it back to the server archive record.
+- `--path <file.md>` (required on desktop)
+- `--reader` returns the reader-mode URL (`#reader`)
+- `--active` is GUI/Obsidian-only and returns `SERVICE_NOT_READY` on desktop
+```bash
+sa share --path ./workspace/exported-archive.md --reader
+sa share --path ./draft.md
+```
+
+If the file has `archiveId`, `sourceArchiveId`, or
+`social_archiver_server_archive_id` frontmatter, that server archive is shared.
+If no server archive id is present, the CLI first runs the same composed-post
+path as `post`, then shares the created archive. Response `data` includes
+`{ path, shareId, shareUrl, archiveId, shareUrlCopied:false }`.
+
+### `author-notes` — ✅
+Desktop-specific interpretation: seed/upsert editable **server author profiles**
+from recent archives. It does not create Obsidian vault author-note Markdown
+files.
+- `--dryRun` reports the author keys that would be upserted
+- `--limit <n>` scans up to `n` recent archives (capped to 100 per run)
+```bash
+sa author-notes --dryRun --limit 50
+sa author-notes --limit 50
+```
+
+Response `data` matches the shared shape `{ created, skipped, failed, paths }`,
+where `paths` are server author keys such as `x:url:https://x.com/alice`.
+
 ---
 
 ## Defined but NOT yet wired (return `SERVICE_NOT_READY`)
 
-These are part of the shared surface and will light up in later phases. They need
-the desktop GUI's local SQLite store or sync engine and are GUI-only headless.
+These are part of the shared surface and will light up in later phases. Some need
+the desktop GUI's local SQLite store or sync engine; others still need a
+desktop-safe service adapter.
 
 ### `jobs` / `jobs:check`
 List jobs (`--status`, `--limit`) / run pending-job catch-up (`--syncServer`).
@@ -227,29 +289,21 @@ Reconciles the local SQLite store — unavailable headless.
 Create a tag (`--name`, `--color`) / add·remove·toggle a tag on a note
 (`--path`, `--tag`, `--action <add|remove|toggle>`). Need local TagRepository.
 
-### `profile-crawl` / `subscribe`
-Crawl a profile/RSS now (`--url`, `--count`, `--range`, `--subscribe`, …) /
-create a subscription (`--url`, `--hour`, `--folder`, …).
+### `profile-crawl`
+Crawl a profile/RSS now (`--url`, `--count`, `--range`, `--subscribe`, …).
 
 ### `import-instagram` / `import-job` / `import-control`
 Instagram Saved ZIP import (`--files`, `--destination`, `--preflight`, …),
 inspect (`--id`, `--items`), control (`--id`, `--action <pause|resume|cancel>`).
 
-### `post` / `share`
-Post a note to the timeline / post + create a share URL (`--path` or `--active`,
-`--reader`). `--active` is GUI-only.
-
 ### `transcribe` / `media`
 Batch transcription control (`--mode`, `--action`) / media re-download·detach
 (`--path` or `--active`, `--action`).
 
-### `author-notes`
-Create/update author notes (`--dryRun`, `--limit`).
-
-### `ai-comment` / `ai-comments` / `ai-providers`
-Generate an AI comment (`--path`, `--type`, `--provider`, `--prompt`,
-`--language`, `--outputLanguage`) / list a note's AI comments (`--path`) / list
-installed AI CLI providers + auth status. Executor wiring is a later phase.
+### `ai-comments` / `ai-providers`
+List a note's AI comments (`--path`) / list installed AI CLI providers + auth
+status through the shared cli-core command path. Use the desktop `ai-comment`
+workspace command and `executor` for available AI job flows today.
 
 ---
 
