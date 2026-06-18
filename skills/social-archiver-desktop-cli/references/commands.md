@@ -330,6 +330,42 @@ sa author-notes --limit 50
 Response `data` matches the shared shape `{ created, skipped, failed, paths }`,
 where `paths` are server author keys such as `x:url:https://x.com/alice`.
 
+### `transcribe` — ✅ (requester)
+Queue a transcription job for an archive that has audio/video (e.g. YouTube,
+TikTok, or a post with attached media). The CLI fetches the archive, resolves its
+transcribable media, runs the **availability handshake** (is a transcription
+executor online + capable?), then creates the job. An **executor** runs it — the
+desktop app today; poll progress with `job --id`. This requester does not produce
+the transcript itself.
+- `<archiveId>` (positional, required)
+- `--mode <download-only|download-and-transcribe|transcribe-existing-media>`
+  (optional; default auto — `transcribe-existing-media` when the archive already
+  has media, else `download-and-transcribe` for a downloadable source)
+- `--language <lang>` (optional output/transcription language hint)
+- `--model <name>` (optional requested Whisper model)
+- `--run` — register THIS process as a transcription executor and run the job
+  **inline** (yt-dlp downloads the media, Whisper transcribes it), so no separate
+  executor is needed. Requires **yt-dlp + ffmpeg + a Whisper backend** installed
+  locally (presence-checked — never reads keys); else `SERVICE_NOT_READY` with
+  `error.details.status` (`yt_dlp_missing` / `ffmpeg_missing` / `whisper_missing`)
+  + `details.tools`. `--run` effectively serves `download-and-transcribe` (a
+  headless process has no pre-downloaded local media for `transcribe-existing-media`).
+
+`data` = `{ jobId, status, mode, mediaKind, executor: { live, status } | null,
+delivery: { liveDispatched, queued }, note }` (+ `ranLocally` + `tools` with
+`--run`). Without an executor online the command returns `SERVICE_NOT_READY`
+(retryable) with `error.details.status` (e.g. `no_executor`, `whisper_missing`);
+an archive with no transcribable media returns `INVALID_ARGUMENT`.
+```bash
+sa transcribe Et4GOQVVKR                                   # queue for the desktop app, then:
+sa job --id="<jobId>"                                       # poll to completion
+sa transcribe Et4GOQVVKR --mode download-and-transcribe --language en
+sa transcribe Et4GOQVVKR --run                             # download + transcribe inline (needs local tools)
+```
+> `--run` mirrors `ai-comment --run`: one process registers, queues, and drains
+> the job. If the desktop GUI is the active executor it may claim the job first —
+> then `ranLocally:false` and the GUI finishes it.
+
 ---
 
 ## Defined but NOT yet wired (return `SERVICE_NOT_READY`)
@@ -357,9 +393,9 @@ Crawl a profile/RSS now (`--url`, `--count`, `--range`, `--subscribe`, …).
 Instagram Saved ZIP import (`--files`, `--destination`, `--preflight`, …),
 inspect (`--id`, `--items`), control (`--id`, `--action <pause|resume|cancel>`).
 
-### `transcribe` / `media`
-Batch transcription control (`--mode`, `--action`) / media re-download·detach
-(`--path` or `--active`, `--action`).
+### `media`
+Media re-download·detach (`--path` or `--active`, `--action`). (The desktop
+`transcribe` requester is wired — see "Available now" above.)
 
 ### `ai-comments` / `ai-providers`
 List a note's AI comments (`--path`) / list installed AI CLI providers + auth

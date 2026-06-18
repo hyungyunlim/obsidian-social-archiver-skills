@@ -186,9 +186,10 @@ Always pass `format=json` is the default; never parse free-form text. Parse
 | `push` | ✅ workspace write-back: diff a file's frontmatter (tags/liked/bookmarked) → server; `--dry-run` to preview |
 | `ai-comment` | ✅ workspace: queues an AI job — completes when an executor runs (`executor --watch` or the GUI), else `SERVICE_NOT_READY`. **`--run`** registers this process as a one-shot executor + runs it inline (needs a local provider CLI), so no separate `executor --watch` is needed |
 | `executor` | ✅ headless: claim + run server AI-comment jobs plus `content.translate_variant` AI actions locally via a provider CLI (`--watch` to loop; bare = one-shot drain; `--providers` to detect only) |
+| `transcribe` | ✅ requester + inline executor: `transcribe <archiveId> [--mode …]` resolves the archive's audio/video + availability handshake → queues a job for an online executor (the desktop app); poll with `job`. **`--run`** registers this process as a transcription executor and runs it inline (yt-dlp download + Whisper) — needs yt-dlp/ffmpeg/Whisper installed locally |
 | `jobs`, `jobs:check`, `sync` | ⛔ need local SQLite/sync engine (GUI-only) |
 | `tag-create`, `tag-apply` | ⛔ cli-core path-based; superseded on desktop by `tag` |
-| `profile-crawl`, `import-*`, `transcribe`, `media`, `googlemaps`, `ai-comments`, `ai-providers` | ⛔ defined; not yet wired |
+| `profile-crawl`, `import-*`, `media`, `googlemaps`, `ai-comments`, `ai-providers` | ⛔ defined; not yet wired |
 
 `archive` v1 limits: `--tags` / `--comment` are local-note features not in the
 server submit and are ignored; `--media=images` is treated as `--media=all`.
@@ -246,6 +247,12 @@ sa status
 # Archive + poll
 sa archive --url="https://www.instagram.com/p/example/"
 sa job --id="<jobId>"
+
+# Transcribe a video archive (queues a job for the desktop executor; poll it)
+sa transcribe <archiveId> --mode download-and-transcribe
+sa job --id="<jobId>"
+# …or run it inline here (needs yt-dlp + ffmpeg + Whisper installed locally)
+sa transcribe <archiveId> --run
 
 # Subscribe / post / share
 sa subscribe --url="https://x.com/alice" --hour 9
