@@ -1,6 +1,6 @@
 ---
 name: social-archiver-desktop-cli
-description: Use when an agent needs to drive the Social Archiver DESKTOP app headlessly through its standalone Node CLI — archive a social/web URL, subscribe to a public profile/feed, post/share a local Markdown file, seed author profiles, check archive jobs, read account/capability status, or run the headless AI-job executor — without the desktop GUI running. Triggers on phrases like "archive this link with the desktop app", "social archiver desktop cli", "headless archive", "queue an archive job", "subscribe with desktop cli", "post this markdown", "share this archive", "author-notes", "check archive job status", "social-archiver status", "run the executor", "executor --watch", "process AI comment jobs headlessly", "process translation variant jobs headlessly", or "content.translate_variant". For the Obsidian-plugin variant (driving a running Obsidian vault), use the `obsidian-social-archiver-cli` skill instead.
+description: Use when an agent needs to drive the Social Archiver DESKTOP app headlessly through its standalone Node CLI — archive a social/web URL, search your archived posts, bookmark posts (move them between Inbox and Archived), subscribe to a public profile/feed, post/share a local Markdown file, seed author profiles, check archive jobs, read account/capability status, or run the headless AI-job executor (or run an AI comment inline) — without the desktop GUI running. Triggers on phrases like "archive this link with the desktop app", "social archiver desktop cli", "headless archive", "queue an archive job", "search my archives", "find an archived post", "bookmark this archive", "move posts out of the inbox", "triage my inbox", "subscribe with desktop cli", "post this markdown", "share this archive", "author-notes", "check archive job status", "social-archiver status", "run the executor", "executor --watch", "process AI comment jobs headlessly", "ai-comment --run", "process translation variant jobs headlessly", or "content.translate_variant". For the Obsidian-plugin variant (driving a running Obsidian vault), use the `obsidian-social-archiver-cli` skill instead.
 ---
 
 # Social Archiver Desktop CLI
@@ -14,20 +14,22 @@ Commands mirror the Obsidian CLI surface and return the same JSON envelope when
 run with the default `format=json`. cli-core is shared host-agnostic code; the
 desktop host wraps the real `DesktopApiClient`.
 
-> Status: scaffold (PR-1/PR-3 + PR-2 partial) + selected server-backed follow-ups
-> + headless executor (PR-4). `status`, `archive`, `job`, `subscribe`,
-> `post`, `share`, `tags`, and `author-notes` are wired to the live server, and
-> `executor --watch` runs AI-comment jobs and the supported AI-action subset
-> locally so `ai-comment` and `content.translate_variant` jobs can complete
-> **without the GUI**. The desktop executor advertises `content-translate-v1`
-> only for content variants: translation variants are supported, while tag
-> patches and other content variants (for example `content.reformat_variant`) are
+> Status: server-backed commands + a local workspace + a headless executor are
+> live. **Server-wired:** `status`, `archive`, `job`, `search` (per-user substring
+> search → snippets), `subscribe`, `post`, `share`, `tags`, `bookmark` (bulk
+> Inbox ↔ Archived state), and `author-notes`. **Local workspace** (pull a corpus
+> to `.md`, then classify / comment / sync back): `export` (with an `--archived`
+> Inbox/Archived filter), `tag`, `note`, `push`. **AI jobs:** `ai-comment` queues
+> a job that an executor runs — the GUI, `executor --watch` (headless; claims jobs
+> and runs a provider CLI locally, showing up as a `live` executor), or
+> `ai-comment --run` to queue **and** run it inline in one process. The desktop
+> executor advertises `content-translate-v1` for `content.translate_variant` only;
+> tag patches and other content variants (e.g. `content.reformat_variant`) are
 > left for an Obsidian executor or Cloud AI. `author-notes` on desktop seeds
 > server author profiles; it does not create Obsidian vault author-note files.
-> Other commands are defined but
-> return `SERVICE_NOT_READY` until later phases — see "Command availability"
-> below. This doc states what works today; do not invoke a command marked
-> not-yet-wired and expect a result.
+> Remaining commands are defined but return `SERVICE_NOT_READY` — see "Command
+> availability" below. This doc states what works today; do not invoke a command
+> marked not-yet-wired and expect a result.
 
 See `references/commands.md` for the full catalog and `references/output-schema.md`
 for the envelope, error codes, and redaction rules.
@@ -177,11 +179,12 @@ Always pass `format=json` is the default; never parse free-form text. Parse
 | `tags` | ✅ wired (server: fetchUserTags → names + colors; `--counts` not yet populated) |
 | `author-notes` | ✅ wired (server author-profile seed/upsert from recent archives; `--dryRun` previews keys) |
 | `search` | ✅ wired (server: per-user substring search over your archives → snippet results; `--q` required; flag-gated server-side). One-off lookups; use `export`+grep for repeated analysis |
-| `export` | ✅ workspace: materialize archives to local `.md` (find/analyze, 0 server calls) |
+| `bookmark` | ✅ wired (server bulk-actions: set the **Archived** state — `bookmark --ids id1,id2` moves posts out of the Inbox; `--off` moves them back; chunked ≤200/req) |
+| `export` | ✅ workspace: materialize archives to local `.md` (find/analyze, 0 server calls); `--archived false` = Inbox-only, `--archived true` = Archived-only |
 | `tag` | ✅ workspace: classify by file → server `upsertTags`/`upsertArchiveTags` (batched) |
 | `note` | ✅ workspace: append a personal note by file → server `updateNotes` |
 | `push` | ✅ workspace write-back: diff a file's frontmatter (tags/liked/bookmarked) → server; `--dry-run` to preview |
-| `ai-comment` | ✅ workspace: queues an AI job — completes when an executor runs (`executor --watch` or the GUI), else `SERVICE_NOT_READY` |
+| `ai-comment` | ✅ workspace: queues an AI job — completes when an executor runs (`executor --watch` or the GUI), else `SERVICE_NOT_READY`. **`--run`** registers this process as a one-shot executor + runs it inline (needs a local provider CLI), so no separate `executor --watch` is needed |
 | `executor` | ✅ headless: claim + run server AI-comment jobs plus `content.translate_variant` AI actions locally via a provider CLI (`--watch` to loop; bare = one-shot drain; `--providers` to detect only) |
 | `jobs`, `jobs:check`, `sync` | ⛔ need local SQLite/sync engine (GUI-only) |
 | `tag-create`, `tag-apply` | ⛔ cli-core path-based; superseded on desktop by `tag` |
@@ -208,6 +211,8 @@ sa executor --providers
 #    → { providers: [ { id:"claude", available:true, authenticated:true, version:"…" }, … ] }
 
 # 2. Run the loop (Ctrl-C to stop). Streams NDJSON: registered → claimed → completed.
+#    While watching, this executor shows up as LIVE to the requester (each poll
+#    doubles as a presence heartbeat) and the cadence is adaptive — see below.
 sa executor --watch [--provider claude] [--poll 15]
 
 # 3. One-shot: drain whatever is queued right now, then exit.
@@ -220,6 +225,12 @@ sa executor
 - `--format json` (default) emits **NDJSON** — one JSON object per line:
   `{event,…}` progress lines (`registered`, `claimed`, `completed`, `failed`,
   `poll`) followed by a terminal `CliResponse` envelope. Parse line-by-line.
+- **`--watch` is adaptive + live.** `--poll` (default 15s) is only the *idle
+  baseline*; after a poll that sees work the loop tightens to a ~3s burst, and on
+  errors it backs off exponentially (capped 60s). Each poll doubles as a presence
+  heartbeat, so a watching executor reports as **`live`** (not merely `queued`) to
+  the requester (mobile / GUI) and jobs route to it immediately. Keep the baseline
+  under ~90s or the server marks the executor stale.
 - Provider auth is checked by **presence only** (an env var or `~/.<cli>` config
   dir). Keys are never read or transmitted.
 - Typical agent flow: `ai-comment <file> --type summary` to queue, then (on a

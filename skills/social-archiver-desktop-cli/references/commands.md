@@ -60,6 +60,9 @@ file has frontmatter (`archiveId`, platform, url, author, dates) + the post body
 - `--dir <path>` (default `<config-dir>/workspace`)
 - `--limit <n>` (default 100)
 - `--since <ISO>` (server-side delta — only archives updated after this time)
+- `--archived <true|false>` (bookmark filter: `false` = **Inbox only**, `true` =
+  **Archived only**, omitted = both). Use `--archived false` to list Inbox items
+  to triage, then `bookmark` the ones to keep.
 ```bash
 sa export --dir ./workspace --limit 50
 grep -ril "keyword" ./workspace      # find by content (0 server calls)
@@ -67,6 +70,23 @@ grep -ril "keyword" ./workspace      # find by content (0 server calls)
 ```
 Read-only. Prefer this for find/analyze; reserve server calls for mutations
 (which should be batched). Re-running overwrites by filename (idempotent).
+
+### `bookmark` — ✅
+Bulk set the **Archived** state (`is_bookmarked`) on archives — the same action
+as the app's "Archive" button (moves posts in/out of the **Inbox**). Maps to the
+server `bulk-actions` endpoint; the host chunks at ≤200 IDs/request.
+- `--ids <id1,id2>` (required; archive IDs — from `export` frontmatter or `search`)
+- `--off` (un-bookmark instead → move back to Inbox)
+
+`data` = `{ bookmarked, requested, updatedIds[], failed[] }` (per-archive failures
+in `failed`, not a whole-call error).
+```bash
+# Triage Inbox: list inbox items, then archive the ones to keep
+sa export --dir ./inbox --archived false --limit 200
+#   → review files, collect archiveId frontmatter of the keepers
+sa bookmark --ids "id-1,id-2,id-3"        # move them out of Inbox
+sa bookmark --ids "id-9" --off            # send one back to Inbox
+```
 
 ## Mutate — classify / comment (workspace file → server)
 
@@ -84,11 +104,24 @@ grep -ril "topic" ./workspace | xargs sa tag --add topic
 `note <file.md> --text "<text>"`. Read-modify-write (fetches existing notes,
 appends). The agent-natural "comment": analyze the file yourself, record a note.
 
-### `ai-comment` — ✅ queues a job (run it with `executor`)
-`ai-comment <file.md> --type <summary|factcheck|critique|keypoints|sentiment|connections|translation|glossary|reformat|custom> [--provider <claude|gemini|codex>] [--language <lang>]`.
+### `ai-comment` — ✅ queues a job (run it with `executor`, or inline with `--run`)
+`ai-comment <file.md> --type <summary|factcheck|critique|keypoints|sentiment|connections|translation|glossary|reformat|custom> [--provider <claude|gemini|codex>] [--language <lang>] [--run]`.
 Availability handshake → `createAICommentJob`; returns a `jobId`. The comment is
 produced by a separate executor (the desktop GUI, or `executor --watch` — see
 below), NOT this CLI — returns `SERVICE_NOT_READY` if no executor is available.
+
+**`--run`** does the whole thing in one process: it registers THIS process as a
+one-shot `tauri-desktop` executor, queues the job (so the handshake targets it),
+runs it locally via your provider CLI (claude/gemini/codex), then advertises
+disabled on exit. No separate `executor --watch` needed. Requires a local
+provider (else `SERVICE_NOT_READY`); on success `data` = `{ jobId, status,
+ranLocally, provider, note }`. The comment is appended server-side and syncs to
+all devices (read it back with `export`/`search`). Graceful degradation: if the
+desktop GUI is the active executor, it may claim the job instead — then
+`ranLocally:false` and the GUI completes it.
+```bash
+sa ai-comment ./workspace/2026-x.md --type summary --run
+```
 This command still creates AI comments. For server content-variant translation
 jobs (`content.translate_variant`), use the app/server AI-action flow; the
 desktop headless executor can run those jobs once they are queued.
@@ -154,9 +187,15 @@ or `SERVICE_NOT_READY`.
 
 ### `executor --watch` — ✅ loop
 Poll + run jobs until interrupted (SIGINT/SIGTERM → graceful stop: advertises a
-disabled capability so the server stops routing, then exits 0).
+disabled capability so the server stops routing, then exits 0). While watching it
+publishes a **presence heartbeat on every poll**, so it appears as a **`live`**
+executor to the requester (mobile / GUI) and jobs route to it immediately — not
+merely `queued`.
 - `--provider <claude|gemini|codex>` (optional; else the first ready provider)
-- `--poll <seconds>` (default 15, min 3)
+- `--poll <seconds>` — the **idle baseline** (default 15, min 3). The loop is
+  adaptive: after a poll that sees work it tightens to a ~3s burst; on errors it
+  backs off exponentially (capped 60s, kept under the server's ~90s presence-stale
+  window so a recovered run is re-marked `live` on the next poll).
 - `--language <lang>` (output-language fallback; default `auto`)
 ```bash
 sa executor --watch --provider claude --poll 30
