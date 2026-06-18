@@ -350,6 +350,12 @@ the transcript itself.
   `error.details.status` (`yt_dlp_missing` / `ffmpeg_missing` / `whisper_missing`)
   + `details.tools`. `--run` effectively serves `download-and-transcribe` (a
   headless process has no pre-downloaded local media for `transcribe-existing-media`).
+- `--doctor` — **diagnose only** (offline; no `<archiveId>`, no auth). Detects
+  yt-dlp / ffmpeg / ffprobe / Whisper, reports which modes this machine can run,
+  and prints copy-paste install commands for whatever is missing. Installs/runs
+  **nothing** — ffmpeg/Whisper need a system package manager, so it only surfaces
+  the commands. `--format text` prints a human-readable checklist; default JSON
+  returns `{ os, tools[], whisperBackends[], supportedModes, ready, summary, nextSteps }`.
 
 `data` = `{ jobId, status, mode, mediaKind, executor: { live, status } | null,
 delivery: { liveDispatched, queued }, note }` (+ `ranLocally` + `tools` with
@@ -357,6 +363,7 @@ delivery: { liveDispatched, queued }, note }` (+ `ranLocally` + `tools` with
 (retryable) with `error.details.status` (e.g. `no_executor`, `whisper_missing`);
 an archive with no transcribable media returns `INVALID_ARGUMENT`.
 ```bash
+sa transcribe --doctor --format text                       # check local tools before --run
 sa transcribe Et4GOQVVKR                                   # queue for the desktop app, then:
 sa job --id="<jobId>"                                       # poll to completion
 sa transcribe Et4GOQVVKR --mode download-and-transcribe --language en
